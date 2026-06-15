@@ -5,6 +5,7 @@
   <title>Worship Planner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
   <style>
@@ -25,6 +26,8 @@
     header::after { content: ''; display: block; width: 60px; height: 3px; background: var(--gold); margin: 12px auto 0; border-radius: 2px; }
     header h1 { font-family: 'Playfair Display', serif; font-size: clamp(1.6rem, 5vw, 2.2rem); color: var(--white); }
     header p { color: #9aabcc; font-size: 0.85rem; margin-top: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
+    .storage-badge { display: inline-flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.12); color: #9aabcc; border-radius: 20px; padding: 3px 10px; font-size: 0.72rem; margin-top: 8px; }
+    .storage-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; }
 
     main { max-width: 760px; margin: 0 auto; padding: 24px 16px 60px; }
 
@@ -53,6 +56,9 @@
     .btn-save:hover { opacity: 0.88; }
     .btn-edit { background: var(--mist); color: var(--navy); }
     .btn-delete { background: #fdecea; color: var(--red); }
+    .btn-export { background: #e8f5e9; color: #2e7d32; }
+    .btn-print  { background: #e3f2fd; color: #1565c0; }
+    .export-bar { display: flex; gap: 10px; margin-bottom: 6px; }
 
     #songList { list-style: none; margin-top: 4px; }
     #songList li { display: flex; align-items: center; gap: 10px; background: var(--cream); border: 1.5px solid var(--mist); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; cursor: grab; transition: box-shadow 0.15s; }
@@ -85,9 +91,6 @@
     .empty-state { text-align: center; padding: 32px 20px; color: #9aabcc; font-size: 0.9rem; }
     .empty-state .big { font-size: 2rem; margin-bottom: 8px; }
 
-    .storage-badge { display: inline-flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.12); color: #9aabcc; border-radius: 20px; padding: 3px 10px; font-size: 0.72rem; margin-top: 8px; }
-    .storage-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; }
-
     .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--navy); color: var(--white); padding: 12px 22px; border-radius: 30px; font-size: 0.88rem; font-weight: 500; box-shadow: 0 6px 20px rgba(0,0,0,0.18); transition: transform 0.3s ease; z-index: 999; }
     .toast.show { transform: translateX(-50%) translateY(0); }
 
@@ -95,12 +98,6 @@
     .spinner { width: 32px; height: 32px; border: 3px solid var(--mist); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .btn-export { background: #e8f5e9; color: #2e7d32; }
-    .btn-print  { background: #e3f2fd; color: #1565c0; }
-
-    .export-bar { display: flex; gap: 10px; margin-bottom: 6px; }
-
-    /* ── Print styles ── */
     @media print {
       body { background: white; }
       header { background: #1B2A4A !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -122,26 +119,18 @@
 <header>
   <h1>🎵 Worship Planner</h1>
   <p>Schedule · Team · Setlist</p>
-  <div class="storage-badge"><span class="dot"></span><span id="storageLabel">Connecting…</span></div>
+  <div class="storage-badge"><span class="dot"></span><span id="storageLabel">Connecting to database…</span></div>
 </header>
 
 <main>
-  <!-- Service Info -->
   <div class="section-card">
     <div class="section-title"><span class="icon">📅</span> Service Details</div>
     <div class="info-row">
-      <div class="field-group">
-        <label>Date</label>
-        <input type="date" id="date">
-      </div>
-      <div class="field-group">
-        <label>Preacher</label>
-        <input type="text" id="preacher" placeholder="e.g. Pastor John">
-      </div>
+      <div class="field-group"><label>Date</label><input type="date" id="date"></div>
+      <div class="field-group"><label>Preacher</label><input type="text" id="preacher" placeholder="e.g. Pastor John"></div>
     </div>
   </div>
 
-  <!-- Team Roles -->
   <div class="section-card">
     <div class="section-title"><span class="icon">🎸</span> Team Roles</div>
     <div class="roles-grid">
@@ -156,7 +145,6 @@
     </div>
   </div>
 
-  <!-- Songs -->
   <div class="section-card">
     <div class="section-title"><span class="icon">🎶</span> Setlist</div>
     <div class="song-form-row">
@@ -172,7 +160,7 @@
 
   <div class="schedules-header">Saved Schedules</div>
   <div class="export-bar">
-    <button class="btn btn-print"  onclick="printSchedules()">🖨️ Print</button>
+    <button class="btn btn-print" onclick="window.print()">🖨️ Print</button>
     <button class="btn btn-export" onclick="exportJSON()">⬇️ Export Backup</button>
   </div>
   <div id="output"></div>
@@ -181,45 +169,25 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  // ── Storage abstraction ──────────────────────────────────────────────
-  // Tries window.storage (Claude artifact) first, falls back to localStorage.
-  const STORAGE_KEY = 'worship-schedules';
-  let usingCloudStorage = false;
+  // ── Supabase init ─────────────────────────────────────────────────────
+  const SUPABASE_URL  = 'https://wrsbdzzztckxyxuxspzu.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indyc2Jkenp6dGNreHl4dXhzcHp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0OTc4MTIsImV4cCI6MjA5NzA3MzgxMn0.agffd3LifwG-zkINTOYriozivRSl1nTEqKYYg3jLJXQ';
+  const { createClient } = supabase;
+  const db = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  async function storageGet() {
-    if (window.storage) {
-      try {
-        const result = await window.storage.get(STORAGE_KEY, true);
-        return result ? JSON.parse(result.value) : [];
-      } catch { return []; }
-    } else {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    }
-  }
-
-  async function storageSet(data) {
-    if (window.storage) {
-      await window.storage.set(STORAGE_KEY, JSON.stringify(data), true);
-    } else {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    }
-  }
-
-  // ── App state ────────────────────────────────────────────────────────
+  // ── App state ─────────────────────────────────────────────────────────
   let songs = [];
-  let editIndex = null;
+  let editId = null; // Supabase row id
 
-  // ── Init ─────────────────────────────────────────────────────────────
+  // ── Init ──────────────────────────────────────────────────────────────
   (async () => {
-    usingCloudStorage = !!window.storage;
-    document.getElementById('storageLabel').textContent =
-      usingCloudStorage ? 'Shared — everyone sees this' : 'Saved locally in browser';
     await loadSchedules();
+    document.getElementById('storageLabel').textContent = 'Live — shared with everyone';
     document.getElementById('loadingOverlay').style.display = 'none';
   })();
 
-  // ── Drag & drop ──────────────────────────────────────────────────────
-  new Sortable(document.getElementById("songList"), {
+  // ── Drag & drop ───────────────────────────────────────────────────────
+  new Sortable(document.getElementById('songList'), {
     animation: 150,
     handle: '.drag-handle',
     ghostClass: 'sortable-chosen',
@@ -236,35 +204,35 @@
 
   // ── Songs ─────────────────────────────────────────────────────────────
   function addSong() {
-    const title = document.getElementById("songTitle").value.trim();
-    const key   = document.getElementById("songKey").value.trim();
-    const tempo = document.getElementById("songTempo").value.trim();
+    const title = document.getElementById('songTitle').value.trim();
+    const key   = document.getElementById('songKey').value.trim();
+    const tempo = document.getElementById('songTempo').value.trim();
     if (!title) return;
     songs.push({ title, key, tempo });
     renderSongs();
-    document.getElementById("songTitle").value = "";
-    document.getElementById("songKey").value = "";
-    document.getElementById("songTempo").value = "";
-    document.getElementById("songTitle").focus();
+    document.getElementById('songTitle').value = '';
+    document.getElementById('songKey').value = '';
+    document.getElementById('songTempo').value = '';
+    document.getElementById('songTitle').focus();
   }
 
-  document.getElementById("songTitle").addEventListener("keydown", e => {
-    if (e.key === "Enter") addSong();
+  document.getElementById('songTitle').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addSong();
   });
 
   function removeSong(i) { songs.splice(i, 1); renderSongs(); }
 
   function renderSongs() {
-    const list = document.getElementById("songList");
-    list.innerHTML = "";
+    const list = document.getElementById('songList');
+    list.innerHTML = '';
     songs.forEach((s, i) => {
-      const li = document.createElement("li");
+      const li = document.createElement('li');
       li.dataset.index = i;
       li.innerHTML = `
         <span class="drag-handle">⠿</span>
         <div class="song-info">
           <div class="song-title-text">${s.title}</div>
-          <div class="song-meta">${[s.key, s.tempo].filter(Boolean).join(" · ")}</div>
+          <div class="song-meta">${[s.key, s.tempo].filter(Boolean).join(' · ')}</div>
         </div>
         <button class="song-remove" onclick="removeSong(${i})">✕</button>`;
       list.appendChild(li);
@@ -273,136 +241,141 @@
 
   // ── Helpers ───────────────────────────────────────────────────────────
   const val = id => document.getElementById(id).value.trim();
-  const set = (id, v) => document.getElementById(id).value = v || "";
+  const set = (id, v) => document.getElementById(id).value = v || '';
 
   function clearForm() {
-    ["date","preacher","vocalist","backup1","backup2","guitarist",
-     "electricGuitar","bassist","keyboardist","drummer"].forEach(id => set(id, ""));
+    ['date','preacher','vocalist','backup1','backup2','guitarist',
+     'electricGuitar','bassist','keyboardist','drummer'].forEach(id => set(id, ''));
+    songs = [];
+    renderSongs();
+    editId = null;
   }
 
-  // ── Save ──────────────────────────────────────────────────────────────
+  // ── Save to Supabase ──────────────────────────────────────────────────
   async function saveSchedule() {
     const data = {
-      date: val("date"),
-      preacher: val("preacher"),
+      date: val('date'),
+      preacher: val('preacher'),
       roles: {
-        vocalist:       val("vocalist"),
-        backup1:        val("backup1"),
-        backup2:        val("backup2"),
-        guitarist:      val("guitarist"),
-        electricGuitar: val("electricGuitar"),
-        bassist:        val("bassist"),
-        keyboardist:    val("keyboardist"),
-        drummer:        val("drummer")
+        vocalist:       val('vocalist'),
+        backup1:        val('backup1'),
+        backup2:        val('backup2'),
+        guitarist:      val('guitarist'),
+        electricGuitar: val('electricGuitar'),
+        bassist:        val('bassist'),
+        keyboardist:    val('keyboardist'),
+        drummer:        val('drummer')
       },
       songs: [...songs]
     };
 
-    let schedules = await storageGet();
-    if (editIndex !== null) { schedules[editIndex] = data; editIndex = null; }
-    else { schedules.push(data); }
-    await storageSet(schedules);
+    if (editId !== null) {
+      const { error } = await db.from('schedules').update({ data }).eq('id', editId);
+      if (error) { showToast('❌ Error updating: ' + error.message); return; }
+    } else {
+      const { error } = await db.from('schedules').insert([{ data, created_at: new Date().toISOString() }]);
+      if (error) { showToast('❌ Error saving: ' + error.message); return; }
+    }
 
-    songs = [];
-    renderSongs();
     clearForm();
     await loadSchedules();
-    showToast("Schedule saved ✓");
+    showToast('Schedule saved ✓');
   }
 
-  // ── Load ──────────────────────────────────────────────────────────────
+  // ── Load from Supabase ────────────────────────────────────────────────
   const roleLabels = {
-    vocalist: "Lead Vocalist", backup1: "Back-up Singer 1", backup2: "Back-up Singer 2",
-    guitarist: "Acoustic Guitar", electricGuitar: "Electric Guitar",
-    bassist: "Bassist", keyboardist: "Keyboardist", drummer: "Drummer"
+    vocalist: 'Lead Vocalist', backup1: 'Back-up Singer 1', backup2: 'Back-up Singer 2',
+    guitarist: 'Acoustic Guitar', electricGuitar: 'Electric Guitar',
+    bassist: 'Bassist', keyboardist: 'Keyboardist', drummer: 'Drummer'
   };
 
   async function loadSchedules() {
-    const schedules = await storageGet();
-    const output = document.getElementById("output");
-    output.innerHTML = "";
+    const { data: rows, error } = await db.from('schedules').select('*').order('created_at', { ascending: false });
+    const output = document.getElementById('output');
+    output.innerHTML = '';
 
-    if (!schedules.length) {
+    if (error) {
+      output.innerHTML = `<div class="empty-state"><div class="big">⚠️</div>Could not load schedules: ${error.message}</div>`;
+      return;
+    }
+
+    if (!rows || !rows.length) {
       output.innerHTML = `<div class="empty-state"><div class="big">🎼</div>No schedules yet. Fill in the form above to get started.</div>`;
       return;
     }
 
-    schedules.forEach((s, i) => {
-      const div = document.createElement("div");
-      div.className = "schedule-card";
+    rows.forEach(row => {
+      const s = row.data;
+      const div = document.createElement('div');
+      div.className = 'schedule-card';
 
       const rolesBadges = Object.entries(s.roles || {})
         .filter(([, v]) => v)
         .map(([k, v]) => `<span class="role-badge">${roleLabels[k] || k}: ${v}</span>`)
-        .join("");
+        .join('');
 
       const songItems = (s.songs || []).map((song, n) => `
         <li>
           <span class="song-num">${n+1}</span>
           <span><strong>${song.title}</strong>${song.key ? ' — ' + song.key : ''}${song.tempo ? ', ' + song.tempo : ''}</span>
-        </li>`).join("");
+        </li>`).join('');
 
       div.innerHTML = `
-        <h3>📅 ${s.date || "No date"}</h3>
-        <div class="schedule-meta">${s.preacher ? `<span class="meta-chip"><strong>Preacher:</strong> ${s.preacher}</span>` : ""}</div>
+        <h3>📅 ${s.date || 'No date'}</h3>
+        <div class="schedule-meta">${s.preacher ? `<span class="meta-chip"><strong>Preacher:</strong> ${s.preacher}</span>` : ''}</div>
         <div class="roles-list">${rolesBadges || '<span style="color:#9aabcc;font-size:.8rem">No roles assigned</span>'}</div>
         ${songItems ? `<ol class="songs-ol">${songItems}</ol>` : '<p style="font-size:.85rem;color:#9aabcc;margin-bottom:12px">No songs added</p>'}
         <div class="card-actions">
-          <button class="btn btn-edit" onclick="editSchedule(${i})">✏️ Edit</button>
-          <button class="btn btn-delete" onclick="deleteSchedule(${i})">🗑 Delete</button>
+          <button class="btn btn-edit" onclick="editSchedule('${row.id}')">✏️ Edit</button>
+          <button class="btn btn-delete" onclick="deleteSchedule('${row.id}')">🗑 Delete</button>
         </div>`;
       output.appendChild(div);
     });
   }
 
-  async function deleteSchedule(index) {
-    if (!confirm("Delete this schedule?")) return;
-    let schedules = await storageGet();
-    schedules.splice(index, 1);
-    await storageSet(schedules);
+  // ── Delete ────────────────────────────────────────────────────────────
+  async function deleteSchedule(id) {
+    if (!confirm('Delete this schedule?')) return;
+    const { error } = await db.from('schedules').delete().eq('id', id);
+    if (error) { showToast('❌ Error: ' + error.message); return; }
     await loadSchedules();
-    showToast("Schedule deleted");
+    showToast('Schedule deleted');
   }
 
-  async function editSchedule(index) {
-    let schedules = await storageGet();
-    const s = schedules[index];
-    set("date", s.date); set("preacher", s.preacher);
-    set("vocalist", s.roles.vocalist); set("backup1", s.roles.backup1);
-    set("backup2", s.roles.backup2); set("guitarist", s.roles.guitarist);
-    set("electricGuitar", s.roles.electricGuitar); set("bassist", s.roles.bassist);
-    set("keyboardist", s.roles.keyboardist); set("drummer", s.roles.drummer);
+  // ── Edit ──────────────────────────────────────────────────────────────
+  async function editSchedule(id) {
+    const { data: rows } = await db.from('schedules').select('*').eq('id', id).single();
+    const s = rows.data;
+    set('date', s.date); set('preacher', s.preacher);
+    set('vocalist', s.roles.vocalist); set('backup1', s.roles.backup1);
+    set('backup2', s.roles.backup2); set('guitarist', s.roles.guitarist);
+    set('electricGuitar', s.roles.electricGuitar); set('bassist', s.roles.bassist);
+    set('keyboardist', s.roles.keyboardist); set('drummer', s.roles.drummer);
     songs = [...s.songs];
     renderSongs();
-    editIndex = index;
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    showToast("Editing schedule — save when done");
+    editId = id;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showToast('Editing schedule — save when done');
   }
 
-  function showToast(msg) {
-    const t = document.getElementById("toast");
-    t.textContent = msg;
-    t.classList.add("show");
-    setTimeout(() => t.classList.remove("show"), 2800);
-  }
-
-  // ── Print ─────────────────────────────────────────────────────────────
-  function printSchedules() {
-    window.print();
-  }
-
-  // ── Export JSON backup ────────────────────────────────────────────────
+  // ── Export ────────────────────────────────────────────────────────────
   async function exportJSON() {
-    const schedules = await storageGet();
-    if (!schedules.length) { showToast("No schedules to export"); return; }
-    const blob = new Blob([JSON.stringify(schedules, null, 2)], { type: 'application/json' });
+    const { data: rows } = await db.from('schedules').select('*').order('created_at', { ascending: false });
+    if (!rows || !rows.length) { showToast('No schedules to export'); return; }
+    const blob = new Blob([JSON.stringify(rows.map(r => r.data), null, 2)], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
-    a.href     = url;
-    a.download = 'worship-schedules-backup.json';
-    a.click();
+    a.href = url; a.download = 'worship-schedules-backup.json'; a.click();
     URL.revokeObjectURL(url);
-    showToast("Backup downloaded ✓");
+    showToast('Backup downloaded ✓');
+  }
+
+  // ── Toast ─────────────────────────────────────────────────────────────
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
   }
 </script>
 </body>
