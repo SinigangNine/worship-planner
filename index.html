@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Worship Planner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy:   #1B2A4A;
+      --gold:   #C9963A;
+      --cream:  #FAF7F2;
+      --mist:   #EEE9E0;
+      --slate:  #4A5568;
+      --white:  #FFFFFF;
+      --red:    #C0392B;
+      --radius: 12px;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--navy); min-height: 100vh; }
+
+    header { background: var(--navy); padding: 28px 24px 20px; text-align: center; }
+    header::after { content: ''; display: block; width: 60px; height: 3px; background: var(--gold); margin: 12px auto 0; border-radius: 2px; }
+    header h1 { font-family: 'Playfair Display', serif; font-size: clamp(1.6rem, 5vw, 2.2rem); color: var(--white); }
+    header p { color: #9aabcc; font-size: 0.85rem; margin-top: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
+
+    main { max-width: 760px; margin: 0 auto; padding: 24px 16px 60px; }
+
+    .section-card { background: var(--white); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(27,42,74,0.07); }
+    .section-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: var(--navy); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--mist); display: flex; align-items: center; gap: 8px; }
+    .section-title .icon { width: 28px; height: 28px; background: var(--gold); border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.9rem; }
+
+    .roles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+    .field-group { display: flex; flex-direction: column; gap: 4px; }
+    .field-group label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--slate); }
+
+    input[type="text"], input[type="date"] { width: 100%; padding: 10px 12px; border: 1.5px solid var(--mist); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.92rem; color: var(--navy); background: var(--cream); transition: border-color 0.2s; outline: none; }
+    input[type="text"]:focus, input[type="date"]:focus { border-color: var(--gold); background: var(--white); }
+
+    .info-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 480px) { .info-row { grid-template-columns: 1fr; } }
+
+    .song-form-row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    @media (max-width: 500px) { .song-form-row { grid-template-columns: 1fr; } }
+
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 18px; border: none; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--gold); color: var(--white); }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-save { background: var(--navy); color: var(--white); width: 100%; padding: 14px; font-size: 0.95rem; margin-top: 4px; }
+    .btn-save:hover { opacity: 0.88; }
+    .btn-edit { background: var(--mist); color: var(--navy); }
+    .btn-delete { background: #fdecea; color: var(--red); }
+
+    #songList { list-style: none; margin-top: 4px; }
+    #songList li { display: flex; align-items: center; gap: 10px; background: var(--cream); border: 1.5px solid var(--mist); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; cursor: grab; transition: box-shadow 0.15s; }
+    #songList li:active { cursor: grabbing; }
+    #songList li.sortable-chosen { box-shadow: 0 4px 14px rgba(201,150,58,0.25); }
+    .drag-handle { color: #b0b8c8; font-size: 1rem; flex-shrink: 0; }
+    .song-info { flex: 1; }
+    .song-title-text { font-weight: 600; font-size: 0.92rem; }
+    .song-meta { font-size: 0.75rem; color: var(--slate); margin-top: 2px; }
+    .song-remove { background: none; border: none; color: #b0b8c8; font-size: 1.1rem; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: color 0.15s; }
+    .song-remove:hover { color: var(--red); }
+
+    #output { margin-top: 8px; }
+    .schedule-card { background: var(--white); border-radius: var(--radius); padding: 22px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(27,42,74,0.07); border-left: 4px solid var(--gold); }
+    .schedule-card h3 { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: var(--navy); margin-bottom: 10px; }
+    .schedule-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .meta-chip { background: var(--cream); border: 1px solid var(--mist); border-radius: 20px; padding: 3px 10px; font-size: 0.78rem; color: var(--slate); }
+    .meta-chip strong { color: var(--navy); }
+    .roles-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .role-badge { background: #e8f0fe; color: #2a4fa8; border-radius: 6px; padding: 4px 10px; font-size: 0.75rem; font-weight: 600; }
+    .songs-ol { list-style: none; margin-bottom: 14px; }
+    .songs-ol li { padding: 6px 0; border-bottom: 1px dashed var(--mist); font-size: 0.88rem; display: flex; align-items: center; gap: 8px; }
+    .songs-ol li:last-child { border-bottom: none; }
+    .song-num { background: var(--gold); color: var(--white); border-radius: 50%; width: 20px; height: 20px; font-size: 0.7rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .card-actions { display: flex; gap: 8px; }
+
+    .schedules-header { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--navy); margin: 28px 0 14px; display: flex; align-items: center; gap: 10px; }
+    .schedules-header::after { content: ''; flex: 1; height: 1px; background: var(--mist); }
+
+    .empty-state { text-align: center; padding: 32px 20px; color: #9aabcc; font-size: 0.9rem; }
+    .empty-state .big { font-size: 2rem; margin-bottom: 8px; }
+
+    .storage-badge { display: inline-flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.12); color: #9aabcc; border-radius: 20px; padding: 3px 10px; font-size: 0.72rem; margin-top: 8px; }
+    .storage-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; }
+
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--navy); color: var(--white); padding: 12px 22px; border-radius: 30px; font-size: 0.88rem; font-weight: 500; box-shadow: 0 6px 20px rgba(0,0,0,0.18); transition: transform 0.3s ease; z-index: 999; }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    #loadingOverlay { position: fixed; inset: 0; background: var(--cream); display: flex; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; gap: 12px; color: var(--slate); font-size: 0.9rem; }
+    .spinner { width: 32px; height: 32px; border: 3px solid var(--mist); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .btn-export { background: #e8f5e9; color: #2e7d32; }
+    .btn-print  { background: #e3f2fd; color: #1565c0; }
+
+    .export-bar { display: flex; gap: 10px; margin-bottom: 6px; }
+
+    /* ── Print styles ── */
+    @media print {
+      body { background: white; }
+      header { background: #1B2A4A !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .section-card, #loadingOverlay, .export-bar, .card-actions,
+      .btn-save, .toast, .storage-badge { display: none !important; }
+      .schedules-header { margin-top: 10px; }
+      .schedule-card { box-shadow: none; border: 1px solid #ddd; page-break-inside: avoid; margin-bottom: 20px; }
+      .role-badge { border: 1px solid #2a4fa8; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  Loading schedules…
+</div>
+
+<header>
+  <h1>🎵 Worship Planner</h1>
+  <p>Schedule · Team · Setlist</p>
+  <div class="storage-badge"><span class="dot"></span><span id="storageLabel">Connecting…</span></div>
+</header>
+
+<main>
+  <!-- Service Info -->
+  <div class="section-card">
+    <div class="section-title"><span class="icon">📅</span> Service Details</div>
+    <div class="info-row">
+      <div class="field-group">
+        <label>Date</label>
+        <input type="date" id="date">
+      </div>
+      <div class="field-group">
+        <label>Preacher</label>
+        <input type="text" id="preacher" placeholder="e.g. Pastor John">
+      </div>
+    </div>
+  </div>
+
+  <!-- Team Roles -->
+  <div class="section-card">
+    <div class="section-title"><span class="icon">🎸</span> Team Roles</div>
+    <div class="roles-grid">
+      <div class="field-group"><label>Vocalist (Lead)</label><input type="text" id="vocalist" placeholder="Name"></div>
+      <div class="field-group"><label>Back-up Singer 1</label><input type="text" id="backup1" placeholder="Name"></div>
+      <div class="field-group"><label>Back-up Singer 2</label><input type="text" id="backup2" placeholder="Name"></div>
+      <div class="field-group"><label>Acoustic Guitar</label><input type="text" id="guitarist" placeholder="Name"></div>
+      <div class="field-group"><label>Electric Guitar</label><input type="text" id="electricGuitar" placeholder="Name"></div>
+      <div class="field-group"><label>Bassist</label><input type="text" id="bassist" placeholder="Name"></div>
+      <div class="field-group"><label>Keyboardist</label><input type="text" id="keyboardist" placeholder="Name"></div>
+      <div class="field-group"><label>Drummer</label><input type="text" id="drummer" placeholder="Name"></div>
+    </div>
+  </div>
+
+  <!-- Songs -->
+  <div class="section-card">
+    <div class="section-title"><span class="icon">🎶</span> Setlist</div>
+    <div class="song-form-row">
+      <div class="field-group"><label>Song Title</label><input type="text" id="songTitle" placeholder="e.g. Way Maker"></div>
+      <div class="field-group"><label>Key</label><input type="text" id="songKey" placeholder="e.g. G"></div>
+      <div class="field-group"><label>Tempo</label><input type="text" id="songTempo" placeholder="e.g. 72 BPM"></div>
+    </div>
+    <button class="btn btn-primary" onclick="addSong()">＋ Add Song</button>
+    <ul id="songList" style="margin-top:16px;"></ul>
+  </div>
+
+  <button class="btn btn-save" onclick="saveSchedule()">💾 Save Schedule</button>
+
+  <div class="schedules-header">Saved Schedules</div>
+  <div class="export-bar">
+    <button class="btn btn-print"  onclick="printSchedules()">🖨️ Print</button>
+    <button class="btn btn-export" onclick="exportJSON()">⬇️ Export Backup</button>
+  </div>
+  <div id="output"></div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── Storage abstraction ──────────────────────────────────────────────
+  // Tries window.storage (Claude artifact) first, falls back to localStorage.
+  const STORAGE_KEY = 'worship-schedules';
+  let usingCloudStorage = false;
+
+  async function storageGet() {
+    if (window.storage) {
+      try {
+        const result = await window.storage.get(STORAGE_KEY, true);
+        return result ? JSON.parse(result.value) : [];
+      } catch { return []; }
+    } else {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    }
+  }
+
+  async function storageSet(data) {
+    if (window.storage) {
+      await window.storage.set(STORAGE_KEY, JSON.stringify(data), true);
+    } else {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+  }
+
+  // ── App state ────────────────────────────────────────────────────────
+  let songs = [];
+  let editIndex = null;
+
+  // ── Init ─────────────────────────────────────────────────────────────
+  (async () => {
+    usingCloudStorage = !!window.storage;
+    document.getElementById('storageLabel').textContent =
+      usingCloudStorage ? 'Shared — everyone sees this' : 'Saved locally in browser';
+    await loadSchedules();
+    document.getElementById('loadingOverlay').style.display = 'none';
+  })();
+
+  // ── Drag & drop ──────────────────────────────────────────────────────
+  new Sortable(document.getElementById("songList"), {
+    animation: 150,
+    handle: '.drag-handle',
+    ghostClass: 'sortable-chosen',
+    onEnd: syncSongsFromDOM
+  });
+
+  function syncSongsFromDOM() {
+    const items = document.querySelectorAll('#songList li');
+    const reordered = [];
+    items.forEach(li => reordered.push(songs[parseInt(li.dataset.index)]));
+    songs = reordered;
+    renderSongs();
+  }
+
+  // ── Songs ─────────────────────────────────────────────────────────────
+  function addSong() {
+    const title = document.getElementById("songTitle").value.trim();
+    const key   = document.getElementById("songKey").value.trim();
+    const tempo = document.getElementById("songTempo").value.trim();
+    if (!title) return;
+    songs.push({ title, key, tempo });
+    renderSongs();
+    document.getElementById("songTitle").value = "";
+    document.getElementById("songKey").value = "";
+    document.getElementById("songTempo").value = "";
+    document.getElementById("songTitle").focus();
+  }
+
+  document.getElementById("songTitle").addEventListener("keydown", e => {
+    if (e.key === "Enter") addSong();
+  });
+
+  function removeSong(i) { songs.splice(i, 1); renderSongs(); }
+
+  function renderSongs() {
+    const list = document.getElementById("songList");
+    list.innerHTML = "";
+    songs.forEach((s, i) => {
+      const li = document.createElement("li");
+      li.dataset.index = i;
+      li.innerHTML = `
+        <span class="drag-handle">⠿</span>
+        <div class="song-info">
+          <div class="song-title-text">${s.title}</div>
+          <div class="song-meta">${[s.key, s.tempo].filter(Boolean).join(" · ")}</div>
+        </div>
+        <button class="song-remove" onclick="removeSong(${i})">✕</button>`;
+      list.appendChild(li);
+    });
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────
+  const val = id => document.getElementById(id).value.trim();
+  const set = (id, v) => document.getElementById(id).value = v || "";
+
+  function clearForm() {
+    ["date","preacher","vocalist","backup1","backup2","guitarist",
+     "electricGuitar","bassist","keyboardist","drummer"].forEach(id => set(id, ""));
+  }
+
+  // ── Save ──────────────────────────────────────────────────────────────
+  async function saveSchedule() {
+    const data = {
+      date: val("date"),
+      preacher: val("preacher"),
+      roles: {
+        vocalist:       val("vocalist"),
+        backup1:        val("backup1"),
+        backup2:        val("backup2"),
+        guitarist:      val("guitarist"),
+        electricGuitar: val("electricGuitar"),
+        bassist:        val("bassist"),
+        keyboardist:    val("keyboardist"),
+        drummer:        val("drummer")
+      },
+      songs: [...songs]
+    };
+
+    let schedules = await storageGet();
+    if (editIndex !== null) { schedules[editIndex] = data; editIndex = null; }
+    else { schedules.push(data); }
+    await storageSet(schedules);
+
+    songs = [];
+    renderSongs();
+    clearForm();
+    await loadSchedules();
+    showToast("Schedule saved ✓");
+  }
+
+  // ── Load ──────────────────────────────────────────────────────────────
+  const roleLabels = {
+    vocalist: "Lead Vocalist", backup1: "Back-up Singer 1", backup2: "Back-up Singer 2",
+    guitarist: "Acoustic Guitar", electricGuitar: "Electric Guitar",
+    bassist: "Bassist", keyboardist: "Keyboardist", drummer: "Drummer"
+  };
+
+  async function loadSchedules() {
+    const schedules = await storageGet();
+    const output = document.getElementById("output");
+    output.innerHTML = "";
+
+    if (!schedules.length) {
+      output.innerHTML = `<div class="empty-state"><div class="big">🎼</div>No schedules yet. Fill in the form above to get started.</div>`;
+      return;
+    }
+
+    schedules.forEach((s, i) => {
+      const div = document.createElement("div");
+      div.className = "schedule-card";
+
+      const rolesBadges = Object.entries(s.roles || {})
+        .filter(([, v]) => v)
+        .map(([k, v]) => `<span class="role-badge">${roleLabels[k] || k}: ${v}</span>`)
+        .join("");
+
+      const songItems = (s.songs || []).map((song, n) => `
+        <li>
+          <span class="song-num">${n+1}</span>
+          <span><strong>${song.title}</strong>${song.key ? ' — ' + song.key : ''}${song.tempo ? ', ' + song.tempo : ''}</span>
+        </li>`).join("");
+
+      div.innerHTML = `
+        <h3>📅 ${s.date || "No date"}</h3>
+        <div class="schedule-meta">${s.preacher ? `<span class="meta-chip"><strong>Preacher:</strong> ${s.preacher}</span>` : ""}</div>
+        <div class="roles-list">${rolesBadges || '<span style="color:#9aabcc;font-size:.8rem">No roles assigned</span>'}</div>
+        ${songItems ? `<ol class="songs-ol">${songItems}</ol>` : '<p style="font-size:.85rem;color:#9aabcc;margin-bottom:12px">No songs added</p>'}
+        <div class="card-actions">
+          <button class="btn btn-edit" onclick="editSchedule(${i})">✏️ Edit</button>
+          <button class="btn btn-delete" onclick="deleteSchedule(${i})">🗑 Delete</button>
+        </div>`;
+      output.appendChild(div);
+    });
+  }
+
+  async function deleteSchedule(index) {
+    if (!confirm("Delete this schedule?")) return;
+    let schedules = await storageGet();
+    schedules.splice(index, 1);
+    await storageSet(schedules);
+    await loadSchedules();
+    showToast("Schedule deleted");
+  }
+
+  async function editSchedule(index) {
+    let schedules = await storageGet();
+    const s = schedules[index];
+    set("date", s.date); set("preacher", s.preacher);
+    set("vocalist", s.roles.vocalist); set("backup1", s.roles.backup1);
+    set("backup2", s.roles.backup2); set("guitarist", s.roles.guitarist);
+    set("electricGuitar", s.roles.electricGuitar); set("bassist", s.roles.bassist);
+    set("keyboardist", s.roles.keyboardist); set("drummer", s.roles.drummer);
+    songs = [...s.songs];
+    renderSongs();
+    editIndex = index;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    showToast("Editing schedule — save when done");
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2800);
+  }
+
+  // ── Print ─────────────────────────────────────────────────────────────
+  function printSchedules() {
+    window.print();
+  }
+
+  // ── Export JSON backup ────────────────────────────────────────────────
+  async function exportJSON() {
+    const schedules = await storageGet();
+    if (!schedules.length) { showToast("No schedules to export"); return; }
+    const blob = new Blob([JSON.stringify(schedules, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'worship-schedules-backup.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("Backup downloaded ✓");
+  }
+</script>
+</body>
+</html>
